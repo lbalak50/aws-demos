@@ -1,4 +1,6 @@
-# Launch Amazon EC2 instance with Ubuntu 16.04 
+# To launch a Webserver using Wordpress
+
+# First, Launch Amazon EC2 instance with Ubuntu 16.04 
 # Install LAMP on ubuntu
 
 1. Update OS
