@@ -1,0 +1,261 @@
+# Launch Amazon EC2 instance with Ubuntu 16.04 
+# Install LAMP on ubuntu
+
+1. Update OS
+$ sudo apt-get update
+
+###############################################################################################
+
+Apache
+The Apache web server is among the most popular web servers in the world. It's well-documented, and has been in wide use for much of the history of the web, which makes it a great default choice for hosting a website.
+
+
+2. Install Apache 
+$ sudo apt-get install apache2
+
+3. Set Global ServerName to Suppress Syntax Warnings
+
+$ sudo vi /etc/apache2/apache2.conf
+
+add a ServerName as:
+
+....
+ServerName <server_domain_or_IP>
+...
+
+and check it by
+$ sudo apache2ctl configtest
+
+output:
+Syntax OK
+
+4. Restart Apache2
+$sudo systemctl restart apache2
+
+5. Adjust the Firewall to Allow Web Traffic
+
+$ sudo ufw app list
+$ sudo ufw app info "Apache Full"
+
+6. Allow incoming traffic
+
+$ sudo ufw allow in "Apache Full"
+
+7. Access your web server using Web browser
+
+http://<your_server_IP_address>
+
+#########################################################################################
+
+MySQL
+MySQL is a database management system. Basically, it will organize and provide access to databases where our site can store information.
+
+8. Install MySQL Database
+
+$ sudo apt-get install mysql-server
+
+9. run a simple security script that will remove some dangerous defaults and lock down access to our database system a little bit
+
+$ mysql_secure_installation
+
+Enter y --> STRONG: 1 --> Estimated strength of the password: 100 --> Change the password for root : n
+
+#########################################################################################
+
+PHP
+PHP is the component of our setup that will process code to display dynamic content. It can run scripts, connect to our MySQL databases to get information, and hand the processed content over to our web server to display.
+
+10. Install PHP
+
+$ sudo apt-get install php libapache2-mod-php php-mcrypt php-mysql
+or 
+$ sudo apt install php-pear php-fpm php-dev php-zip php-curl php-xmlrpc php-gd php-mysql php-mbstring php-xml libapache2-mod-php
+
+11. Edit /etc/apache2/mods-enabled/dir.conf
+Currently, if a user requests a directory from the server, Apache will first look for a file called index.html. We want to tell our web server to prefer PHP files, so we'll make Apache look for an index.php file first.
+
+$ sudo vi /etc/apache2/mods-enabled/dir.conf
+
+Change 
+
+<IfModule mod_dir.c>
+    DirectoryIndex index.html index.cgi index.pl index.php index.xhtml index.htm
+</IfModule>
+
+to 
+
+<IfModule mod_dir.c>
+    DirectoryIndex index.php index.html index.cgi index.pl index.xhtml index.htm
+</IfModule>
+
+12. Restart Apache2
+
+$ sudo systemctl restart apache2
+
+13. Check the Status
+
+$ sudo systemctl status apache2
+
+#########################################################################################
+
+14. Install PHP Modules
+To enhance the functionality of PHP, we can optionally install some additional modules.
+
+$ sudo apt-get install php-cli
+
+15. Test PHP Processing on your Web Server
+
+$ sudo vi /var/www/html/info.php
+
+-->
+
+<?php
+phpinfo();
+?>
+
+<--
+
+16. Access from your Web browser
+
+http://<your_server_IP_address>/info.php
+
+
+#########################################################################################
+
+17. Create a MySQL Database and User for WordPress
+
+$ mysql -u root -p
+Enter Password: <Enter password that given on mysql installation>
+
+mysql> CREATE DATABASE <wordpress> DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+mysql> GRANT ALL ON <wordpress>.* TO '<wordpressuser>'@'localhost' IDENTIFIED BY '<password>';
+mysql> FLUSH PRIVILEGES;
+mysql> EXIT;
+
+18. Install Additional PHP Extensions
+
+$ sudo apt-get install php-curl php-gd php-mbstring php-mcrypt php-xml php-xmlrpc
+
+19. Restart apache2
+
+$ sudo systemctl restart apache2
+
+Adjust Apache's Configuration to Allow for .htaccess Overrides and Rewrites:
+Currently, the use of .htaccess files is disabled. WordPress and many WordPress plugins use these files extensively for in-directory tweaks to the web server's behavior.
+
+20. Enable .htaccess Overrides
+
+$ sudo vi /etc/apache2/apache2.conf
+
+. . .
+
+<Directory /var/www/>
+    AllowOverride All
+</Directory>
+
+. . .
+
+21. Enable the Rewrite Module
+
+$ sudo a2enmod rewrite
+
+22. Enable the Changes
+
+$ sudo apache2ctl configtest
+
+23. Restart Apache2
+
+$ sudo systemctl restart apache2
+
+#########################################################################################
+
+24. Download WordPress
+
+$ cd /tmp
+$ curl -O https://wordpress.org/latest.tar.gz
+
+Extract the compressed file to create the WordPress directory structure:
+$ tar xzvf latest.tar.gz
+
+Create the file and set the permissions by typing:
+
+$ touch /tmp/wordpress/.htaccess
+$ chmod 660 /tmp/wordpress/.htaccess
+
+We'll also copy over the sample configuration file to the filename that WordPress actually reads:
+
+$ cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
+
+We can also create the upgrade directory, so that WordPress won't run into permissions issues when trying to do this on its own following an update to its software:
+
+$ mkdir /tmp/wordpress/wp-content/upgrade
+
+Now, we can copy the entire contents of the directory into our document root. We are using the -a flag to make sure our permissions are maintained. We are using a dot at the end of our source directory to indicate that everything within the directory should be copied, including hidden files (like the .htaccess file we created):
+
+$ sudo cp -a /tmp/wordpress/. /var/www/html
+
+25. Configure the WordPress Directory
+
+$ sudo chown -R ubuntu:www-data /var/www/html
+
+We can set the setgid bit on every directory in our WordPress installation by typing:
+
+$ sudo find /var/www/html -type d -exec chmod g+s {} \;
+
+There are a few other fine-grained permissions we'll adjust. First, we'll give group write access to the wp-content directory so that the web interface can make theme and plugin changes:
+
+$ sudo chmod g+w /var/www/html/wp-content
+
+As part of this process, we will give the web server write access to all of the content in these two directories:
+
+$ sudo chmod -R g+w /var/www/html/wp-content/themes
+$ sudo chmod -R g+w /var/www/html/wp-content/plugins
+
+26. Setting up the WordPress Configuration File
+Now, we need to make some changes to the main WordPress configuration file.
+
+we need to modify some of the database connection settings at the beginning of the file. You need to adjust the database name, the database user, and the associated password that we configured within MySQL.
+
+$ vi /var/www/html/wp-config.php
+
+. . .
+
+define('DB_NAME', 'wordpress');
+
+/** MySQL database username */
+define('DB_USER', 'wordpressuser');
+
+/** MySQL database password */
+define('DB_PASSWORD', 'password');
+
+. . .
+
+
+Next, Edit secure keys:
+
+
+. . .
+
+define('AUTH_KEY',         'put your unique phrase here');
+define('SECURE_AUTH_KEY',  'put your unique phrase here');
+define('LOGGED_IN_KEY',    'put your unique phrase here');
+define('NONCE_KEY',        'put your unique phrase here');
+define('AUTH_SALT',        'put your unique phrase here');
+define('SECURE_AUTH_SALT', 'put your unique phrase here');
+define('LOGGED_IN_SALT',   'put your unique phrase here');
+define('NONCE_SALT',       'put your unique phrase here');
+
+. . .
+
+to get secure values from the WordPress secret key generator, type:
+
+$ curl -s https://api.wordpress.org/secret-key/1.1/salt/
+
+"VALUES COPIED FROM THE COMMAND LINE" to the corresponding.
+
+###################################################################################
+
+27. Complete the Installation Through the Web Interface
+
+http://<server_domain_or_IP>
+
